@@ -1,1 +1,1 @@
-# SimpleJucePluginTemplate
+# SimpleEQ
