@@ -49,6 +49,8 @@ juce_add_plugin(${PROJECT_NAME}
         PLUGIN_CODE Reg0
         FORMATS VST3 AU Standalone
         PRODUCT_NAME "SimpleEQ"
+        JUCE_MODULES
+            juce_dsp
 )
 
 # How we want our SourceFiles to appear in our IDE

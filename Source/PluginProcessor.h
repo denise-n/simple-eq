@@ -1,6 +1,8 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
+
 
 //==============================================================================
 class SimpleEQAudioProcessor final : public juce::AudioProcessor
@@ -46,6 +48,17 @@ public:
     juce::AudioProcessorValueTreeState apvts {*this, nullptr, "Parameters",  createParameterLayout()};
 
 private:
+    using Filter = juce::dsp::IIR::Filter<float>; // Filter alias
+
+    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>; // define a chain and pass in processing context that will run through each element of the chain
+
+    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // whole mono signal path
+
+    // two instances of the mono chain to do stereo processing
+    MonoChain leftChain, rightChain;
+
+
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
 };
