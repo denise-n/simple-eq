@@ -21,6 +21,19 @@ struct ChainSettings
 // give parameter values in data struct
 ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts);
 
+using Filter = juce::dsp::IIR::Filter<float>; // Filter alias
+
+using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>; // define a chain and pass in processing context that will run through each element of the chain
+
+using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // whole mono signal path
+
+enum ChainPositions
+{
+    LowCut,
+    Peak,
+    HighCut,
+};
+
 //==============================================================================
 class SimpleEQAudioProcessor final : public juce::AudioProcessor
 {
@@ -65,21 +78,12 @@ public:
     juce::AudioProcessorValueTreeState apvts {*this, nullptr, "Parameters",  createParameterLayout()};
 
 private:
-    using Filter = juce::dsp::IIR::Filter<float>; // Filter alias
 
-    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>; // define a chain and pass in processing context that will run through each element of the chain
-
-    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // whole mono signal path
 
     // two instances of the mono chain to do stereo processing
     MonoChain leftChain, rightChain;
 
-    enum ChainPositions
-    {
-        LowCut,
-        Peak,
-        HighCut,
-    };
+
 
     void updatePeakFilter(const ChainSettings& chainSettings);
     using Coefficients = Filter::CoefficientsPtr;
