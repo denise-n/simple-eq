@@ -163,10 +163,6 @@ void SimpleEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // pass contexts to monofilter chains
     leftChain.process(leftContext);
     rightChain.process(rightContext);
-
-    juce::ignoreUnused (channelData);
-
-
 }
 
 //==============================================================================
