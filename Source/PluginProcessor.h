@@ -81,6 +81,10 @@ private:
         HighCut,
     };
 
+    void updatePeakFilter(const ChainSettings& chainSettings);
+    using Coefficients = Filter::CoefficientsPtr;
+    static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+
 
 
     //==============================================================================
