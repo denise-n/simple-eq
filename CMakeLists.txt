@@ -37,7 +37,7 @@ set(SourceFiles
 
 # Change these to your own preferences
 juce_add_plugin(${PROJECT_NAME}
-        COMPANY_NAME "Denise N"
+        COMPANY_NAME "Ncyy"
         IS_SYNTH FALSE
         NEEDS_MIDI_INPUT FALSE
         NEEDS_MIDI_OUTPUT FALSE
