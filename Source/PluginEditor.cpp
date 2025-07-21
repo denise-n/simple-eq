@@ -1,36 +1,17 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-//==============================================================================
-SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcessor& p)
-    : AudioProcessorEditor (&p), processorRef (p),
-peakFreqSliderAttachment(processorRef.apvts, "Peak Freq", peakFreqSlider),
-peakGainSliderAttachment(processorRef.apvts, "Peak Gain", peakGainSlider),
-peakQualitySliderAttachment(processorRef.apvts, "Peak Quality", peakQualitySlider),
-lowCutFreqSliderAttachment(processorRef.apvts, "LowCut Freq", lowCutFreqSlider),
-highCutFreqSliderAttachment(processorRef.apvts, "HighCut Freq", highCutFreqSlider),
-lowCutSlopeSliderAttachment(processorRef.apvts, "LowCut Slope", lowCutSlopeSlider),
-highCutSlopeSliderAttachment(processorRef.apvts, "HighCut Slope", highCutSlopeSlider)
+ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : processorRef(p)
 {
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-for ( auto* comp: getComps())
-{
-    addAndMakeVisible(comp);
-}
-    // get parameters from audio processor and add listeners
     const auto& params = processorRef.getParameters();
     for (auto param : params)
     {
         param->addListener(this);
     }
     startTimerHz(60);
-
-    setSize (600, 400);
 }
 
-SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
-{
+ResponseCurveComponent::~ResponseCurveComponent() {
     const auto& params = processorRef.getParameters();
     for (auto param : params)
     {
@@ -38,15 +19,39 @@ SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
     }
 }
 
-//==============================================================================
-void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
+void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float newValue)
+{
+    parametersChanged = true;
+}
+
+void ResponseCurveComponent::timerCallback()
+{
+    if (parametersChanged.compareAndSetBool(false, true))
+    {
+        // update monochain from apvts
+        auto chainSettings = getChainSettings(processorRef.apvts);
+        auto peakCoefficients = makePeakFilter(chainSettings, processorRef.getSampleRate());
+        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+
+        auto lowCutCoefficients = makeLowCutFilter(chainSettings, processorRef.getSampleRate());
+        auto highCutCoefficients = makeHighCutFilter(chainSettings, processorRef.getSampleRate());
+
+        updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
+        updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);
+
+        // signal a repaint so new response curve is drawn
+        repaint();
+
+    }
+}
+
+void ResponseCurveComponent::paint (juce::Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     using namespace juce;
     g.fillAll (Colours::black);
 
-    auto bounds = getLocalBounds();
-    auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+    auto responseArea = getLocalBounds();
 
     auto w = responseArea.getWidth();
 
@@ -111,60 +116,69 @@ void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
     g.strokePath(responseCurve, PathStrokeType(2.f));
 }
 
-void SimpleEQAudioProcessorEditor::resized()
+//==============================================================================
+SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcessor& p)
+    : AudioProcessorEditor (&p), processorRef (p),
+responseCurveComponent(processorRef),
+peakFreqSliderAttachment(processorRef.apvts, "Peak Freq", peakFreqSlider),
+peakGainSliderAttachment(processorRef.apvts, "Peak Gain", peakGainSlider),
+peakQualitySliderAttachment(processorRef.apvts, "Peak Quality", peakQualitySlider),
+lowCutFreqSliderAttachment(processorRef.apvts, "LowCut Freq", lowCutFreqSlider),
+highCutFreqSliderAttachment(processorRef.apvts, "HighCut Freq", highCutFreqSlider),
+lowCutSlopeSliderAttachment(processorRef.apvts, "LowCut Slope", lowCutSlopeSlider),
+highCutSlopeSliderAttachment(processorRef.apvts, "HighCut Slope", highCutSlopeSlider)
 {
-    // This is generally where you'll want to lay out the positions of any
-    // subcomponents in your editor..
-
-    // Top 1/3 of display for showing freq responses
-    // Bottom 2/3 is sliders
-    auto bounds = getLocalBounds();
-    auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
-
-    auto lowCutArea = bounds.removeFromLeft(bounds.getWidth() * 0.33);
-    auto highCutArea = bounds.removeFromRight(bounds.getWidth() * 0.5);
-
-    lowCutFreqSlider.setBounds(lowCutArea.removeFromTop(lowCutArea.getHeight() * 0.5));
-    lowCutSlopeSlider.setBounds(lowCutArea);
-
-    highCutFreqSlider.setBounds(highCutArea.removeFromTop(highCutArea.getHeight() * 0.5));
-    highCutSlopeSlider.setBounds(highCutArea);
-
-    peakFreqSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.33));
-    peakGainSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.5));
-    peakQualitySlider.setBounds(bounds);
-}
-
-void SimpleEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, float newValue)
-{
-    parametersChanged = true;
-}
-
-void SimpleEQAudioProcessorEditor::timerCallback()
-{
-    if (parametersChanged.compareAndSetBool(false, true))
+    // Make sure that before the constructor has finished, you've set the
+    // editor's size to whatever you need it to be.
+    for ( auto* comp: getComps())
     {
-        // update monochain from apvts
-        auto chainSettings = getChainSettings(processorRef.apvts);
-        auto peakCoefficients = makePeakFilter(chainSettings, processorRef.getSampleRate());
-        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+        addAndMakeVisible(comp);
 
-        auto lowCutCoefficients = makeLowCutFilter(chainSettings, processorRef.getSampleRate());
-        auto highCutCoefficients = makeHighCutFilter(chainSettings, processorRef.getSampleRate());
-
-        updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
-        updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);
-
-        // signal a repaint so new response curve is drawn
-        repaint();
-
+        setSize (600, 400);
     }
 }
 
+    SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
+    {
+    }
 
-std::vector<juce::Component*> SimpleEQAudioProcessorEditor::getComps()
-{
-    return {
-        &peakFreqSlider, &peakGainSlider, &peakQualitySlider, &lowCutFreqSlider, &highCutFreqSlider, &lowCutSlopeSlider, &highCutSlopeSlider
-    };
-}
+    //==============================================================================
+    void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
+    {
+        // (Our component is opaque, so we must completely fill the background with a solid colour)
+        using namespace juce;
+        g.fillAll (Colours::black);
+    }
+
+    void SimpleEQAudioProcessorEditor::resized()
+    {
+        // This is generally where you'll want to lay out the positions of any
+        // subcomponents in your editor..
+
+        // Top 1/3 of display for showing freq responses
+        // Bottom 2/3 is sliders
+        auto bounds = getLocalBounds();
+        auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+
+        responseCurveComponent.setBounds(responseArea);
+
+        auto lowCutArea = bounds.removeFromLeft(bounds.getWidth() * 0.33);
+        auto highCutArea = bounds.removeFromRight(bounds.getWidth() * 0.5);
+
+        lowCutFreqSlider.setBounds(lowCutArea.removeFromTop(lowCutArea.getHeight() * 0.5));
+        lowCutSlopeSlider.setBounds(lowCutArea);
+
+        highCutFreqSlider.setBounds(highCutArea.removeFromTop(highCutArea.getHeight() * 0.5));
+        highCutSlopeSlider.setBounds(highCutArea);
+
+        peakFreqSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.33));
+        peakGainSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.5));
+        peakQualitySlider.setBounds(bounds);
+    }
+
+    std::vector<juce::Component*> SimpleEQAudioProcessorEditor::getComps()
+    {
+        return {
+            &peakFreqSlider, &peakGainSlider, &peakQualitySlider, &lowCutFreqSlider, &highCutFreqSlider, &lowCutSlopeSlider, &highCutSlopeSlider, &responseCurveComponent
+        };
+    }
