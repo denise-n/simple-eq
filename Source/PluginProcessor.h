@@ -34,6 +34,12 @@ enum ChainPositions
     HighCut,
 };
 
+using Coefficients = Filter::CoefficientsPtr;
+void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+
+Coefficients makePeakFilter(const ChainSettings& chainSettings, double sampleRate);
+
+
 //==============================================================================
 class SimpleEQAudioProcessor final : public juce::AudioProcessor
 {
@@ -78,22 +84,21 @@ public:
     juce::AudioProcessorValueTreeState apvts {*this, nullptr, "Parameters",  createParameterLayout()};
 
 private:
-
-
     // two instances of the mono chain to do stereo processing
     MonoChain leftChain, rightChain;
 
-
-
     void updatePeakFilter(const ChainSettings& chainSettings);
-    using Coefficients = Filter::CoefficientsPtr;
-    static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+    // using Coefficients = Filter::CoefficientsPtr;
+    // static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
 
     template<int Index, typename ChainType, typename CoefficientType>
     void update(ChainType& chain, const CoefficientType& coefficients)
     {
+        if (coefficients[Index] !=nullptr)
+        {
         updateCoefficients(chain.template get<Index>().coefficients, coefficients[Index]);
         chain.template setBypassed<Index>(false);
+        }
     }
 
     template<typename ChainType, typename CoefficientType>
