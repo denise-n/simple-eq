@@ -18,11 +18,24 @@ for ( auto* comp: getComps())
 {
     addAndMakeVisible(comp);
 }
+    // get parameters from audio processor and add listeners
+    const auto& params = processorRef.getParameters();
+    for (auto param : params)
+    {
+        param->addListener(this);
+    }
+    startTimerHz(60);
+
     setSize (600, 400);
 }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 {
+    const auto& params = processorRef.getParameters();
+    for (auto param : params)
+    {
+        param->removeListener(this);
+    }
 }
 
 //==============================================================================
@@ -131,8 +144,13 @@ void SimpleEQAudioProcessorEditor::timerCallback()
 {
     if (parametersChanged.compareAndSetBool(false, true))
     {
-        // update monochain form apvts
+        // update monochain from apvts
+        auto chainSettings = getChainSettings(processorRef.apvts);
+        auto peakCoefficients = makePeakFilter(chainSettings, processorRef.getSampleRate());
+        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+
         // signal a repaint so new response curve is drawn
+        repaint();
 
     }
 }
