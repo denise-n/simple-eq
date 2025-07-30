@@ -350,8 +350,6 @@ void ResponseCurveComponent::resized()
         g.drawHorizontalLine(y, left, right);
     }
 
-    // g.drawRect(getAnalysisArea());
-
     g.setColour(Colours::lightgrey);
     const int fontHeight = 10;
     g.setFont(fontHeight);
@@ -407,6 +405,17 @@ void ResponseCurveComponent::resized()
         g.setColour(gDb == 0.f ? Colour(144u, 238u, 144u) : Colours::lightgrey);
 
         g.drawFittedText(str, r, juce::Justification::centred, 1);
+
+        // analyser scale
+        str.clear();
+        str << (gDb - 24.f);
+
+        r.setX(1); // change position to far left
+        textWidth = g.getCurrentFont().getStringWidth(str);
+        r.setSize(textWidth, fontHeight);
+        g.setColour(Colours::lightgrey);
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
+
     }
 
 
@@ -415,11 +424,6 @@ void ResponseCurveComponent::resized()
 juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
 {
     auto bounds = getLocalBounds();
-
-    // bounds.reduce(
-    //     10, // JUCE_LIVE_CONSTANT(5),
-    //     8 // JUCE_LIVE_CONSTANT(5);
-    //     );
     bounds.removeFromTop(12);
     bounds.removeFromBottom(2);
     bounds.removeFromLeft(20);
