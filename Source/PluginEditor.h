@@ -63,6 +63,8 @@ juce::Timer
 
     void paint(juce::Graphics& g) override;
 
+    void resized() override;
+
 private:
     SimpleEQAudioProcessor& processorRef;
     juce::Atomic<bool> parametersChanged {false};
@@ -70,6 +72,11 @@ private:
 
     void updateChain();
 
+    juce::Image background;
+
+    juce::Rectangle<int> getRenderArea();
+
+    juce::Rectangle<int> getAnalysisArea();
 };
 
 //==============================================================================
