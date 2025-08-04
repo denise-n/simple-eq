@@ -270,6 +270,11 @@ void ResponseCurveComponent::timerCallback()
 void ResponseCurveComponent::updateChain()
 {
     auto chainSettings = getChainSettings(processorRef.apvts);
+
+    monoChain.setBypassed<ChainPositions::LowCut>(chainSettings.lowCutBypassed);
+    monoChain.setBypassed<ChainPositions::HighCut>(chainSettings.highCutBypassed);
+    monoChain.setBypassed<ChainPositions::Peak>(chainSettings.peakBypassed);
+
     auto peakCoefficients = makePeakFilter(chainSettings, processorRef.getSampleRate());
     updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
 
@@ -310,25 +315,31 @@ void ResponseCurveComponent::paint (juce::Graphics& g)
         if (! monoChain.isBypassed<ChainPositions::Peak>())
             magnitude *= peak.coefficients->getMagnitudeForFrequency(freq, sampleRate);
 
-        if (! lowcut.isBypassed<0>())
-            magnitude *= lowcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        if (! lowcut.isBypassed<1>())
-            magnitude *= lowcut.get<1>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        if (! lowcut.isBypassed<2>())
-            magnitude *= lowcut.get<2>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        if (! lowcut.isBypassed<3>())
-            magnitude *= lowcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+        if (!monoChain.isBypassed<ChainPositions::LowCut>())
+        {
+            if (! lowcut.isBypassed<0>())
+                magnitude *= lowcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+            if (! lowcut.isBypassed<1>())
+                magnitude *= lowcut.get<1>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+            if (! lowcut.isBypassed<2>())
+                magnitude *= lowcut.get<2>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+            if (! lowcut.isBypassed<3>())
+                magnitude *= lowcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+        }
 
-        if (! highcut.isBypassed<0>())
-            magnitude *= highcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        if (! highcut.isBypassed<1>())
-            magnitude *= highcut.get<1>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        if (! highcut.isBypassed<2>())
-            magnitude *= highcut.get<2>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        if (! highcut.isBypassed<3>())
-            magnitude *= highcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+        if (!monoChain.isBypassed<ChainPositions::HighCut>())
+        {
+            if (! highcut.isBypassed<0>())
+                magnitude *= highcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+            if (! highcut.isBypassed<1>())
+                magnitude *= highcut.get<1>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+            if (! highcut.isBypassed<2>())
+                magnitude *= highcut.get<2>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+            if (! highcut.isBypassed<3>())
+                magnitude *= highcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+        }
+            magnitudes[i] = Decibels::gainToDecibels(magnitude);
 
-        magnitudes[i] = Decibels::gainToDecibels(magnitude);
     }
 
     Path responseCurve;
@@ -383,7 +394,7 @@ void ResponseCurveComponent::resized()
     };
 
     // cache info about analysis area
-    auto  renderArea = getAnalysisArea();
+    auto renderArea = getAnalysisArea();
     auto left = renderArea.getX();
     auto right = renderArea.getRight();
     auto top = renderArea.getY();
@@ -521,13 +532,19 @@ highCutFreqSlider(*processorRef.apvts.getParameter("HighCut Freq"), "Hz"),
 lowCutSlopeSlider(*processorRef.apvts.getParameter("LowCut Slope"), "dB/Oct"),
 highCutSlopeSlider(*processorRef.apvts.getParameter("HighCut Slope"), "dB/Oct"),
 responseCurveComponent(processorRef),
+
 peakFreqSliderAttachment(processorRef.apvts, "Peak Freq", peakFreqSlider),
 peakGainSliderAttachment(processorRef.apvts, "Peak Gain", peakGainSlider),
 peakQualitySliderAttachment(processorRef.apvts, "Peak Quality", peakQualitySlider),
 lowCutFreqSliderAttachment(processorRef.apvts, "LowCut Freq", lowCutFreqSlider),
 highCutFreqSliderAttachment(processorRef.apvts, "HighCut Freq", highCutFreqSlider),
 lowCutSlopeSliderAttachment(processorRef.apvts, "LowCut Slope", lowCutSlopeSlider),
-highCutSlopeSliderAttachment(processorRef.apvts, "HighCut Slope", highCutSlopeSlider)
+highCutSlopeSliderAttachment(processorRef.apvts, "HighCut Slope", highCutSlopeSlider),
+
+lowcutBypassButtonAttachment(processorRef.apvts, "LowCut Bypassed", lowcutBypassButton),
+highcutBypassButtonAttachment(processorRef.apvts, "HighCut Bypassed", highcutBypassButton),
+peakBypassButtonAttachment(processorRef.apvts, "Peak Bypassed", peakBypassButton),
+analyserEnabledButtonAttachment(processorRef.apvts, "Analyser Enabled", analyserEnabledButton)
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
@@ -592,12 +609,15 @@ highCutSlopeSliderAttachment(processorRef.apvts, "HighCut Slope", highCutSlopeSl
         auto lowCutArea = bounds.removeFromLeft(bounds.getWidth() * 0.33);
         auto highCutArea = bounds.removeFromRight(bounds.getWidth() * 0.5);
 
+        lowcutBypassButton.setBounds(lowCutArea.removeFromTop(50));
         lowCutFreqSlider.setBounds(lowCutArea.removeFromTop(lowCutArea.getHeight() * 0.5));
         lowCutSlopeSlider.setBounds(lowCutArea);
 
+        highcutBypassButton.setBounds(highCutArea.removeFromTop(25));
         highCutFreqSlider.setBounds(highCutArea.removeFromTop(highCutArea.getHeight() * 0.5));
         highCutSlopeSlider.setBounds(highCutArea);
 
+        peakBypassButton.setBounds(bounds.removeFromTop(25));
         peakFreqSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.33));
         peakGainSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.5));
         peakQualitySlider.setBounds(bounds);
@@ -613,6 +633,12 @@ highCutSlopeSliderAttachment(processorRef.apvts, "HighCut Slope", highCutSlopeSl
             &highCutFreqSlider,
             &lowCutSlopeSlider,
             &highCutSlopeSlider,
-            &responseCurveComponent
+            &responseCurveComponent,
+
+            // bypass buttons
+            &lowcutBypassButton,
+            &peakBypassButton,
+            &highcutBypassButton,
+            &analyserEnabledButton
         };
     }
