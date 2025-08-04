@@ -175,17 +175,15 @@ juce::String RotarySliderWithLabels::getDisplayString() const
 //=============================================================================
 ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) :
 processorRef(p),
-leftChannelFifo(&processorRef.leftChannelFifo)
+// leftChannelFifo(&processorRef.leftChannelFifo)
+leftPathProducer(processorRef.leftChannelFifo),
+rightPathProducer(processorRef.rightChannelFifo)
 {
     const auto& params = processorRef.getParameters();
     for (auto param : params)
     {
         param->addListener(this);
     }
-
-    // 48000 / 2048 = 23hz
-    leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
-    monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
 
     updateChain();
     startTimerHz(60);
@@ -204,7 +202,7 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
     parametersChanged = true;
 }
 
-void ResponseCurveComponent::timerCallback()
+void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
 {
     juce::AudioBuffer<float> tempIncomingBuffer;
 
@@ -229,9 +227,8 @@ void ResponseCurveComponent::timerCallback()
     }
 
     // if there are fft data buffers to pull, if we can pull a buffer => generate a path
-    const auto fftBounds = getAnalysisArea().toFloat();
     const auto fftSize = leftChannelFFTDataGenerator.getFFTSize();
-    const auto binWidth = processorRef.getSampleRate() / double(fftSize);
+    const auto binWidth = sampleRate / double(fftSize);
 
     while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() )
     {
@@ -248,6 +245,16 @@ void ResponseCurveComponent::timerCallback()
         pathProducer.getPath(leftChannelFFTPath);
     }
 
+}
+
+
+void ResponseCurveComponent::timerCallback()
+{
+    auto fftBounds = getAnalysisArea().toFloat();
+    auto sampleRate = processorRef.getSampleRate();
+
+    leftPathProducer.process(fftBounds, sampleRate);
+    rightPathProducer.process(fftBounds, sampleRate);
 
     if (parametersChanged.compareAndSetBool(false, true))
     {
@@ -341,10 +348,16 @@ void ResponseCurveComponent::paint (juce::Graphics& g)
         responseCurve.lineTo(responseArea.getX() + i, map(magnitudes[i]));
     }
 
+    auto leftChannelFFTPath = leftPathProducer.getPath();
     leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-
     g.setColour(Colours::cornflowerblue);
     g.strokePath(leftChannelFFTPath, PathStrokeType(1));
+
+    auto rightChannelFFTPath = rightPathProducer.getPath();
+    rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+    g.setColour(Colours::palegoldenrod);
+    g.strokePath(rightChannelFFTPath, PathStrokeType(1));
+
 
     g.setColour(Colours::orange);
     g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);

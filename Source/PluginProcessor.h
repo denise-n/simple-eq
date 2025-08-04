@@ -282,6 +282,8 @@ private:
 
     void updateFilters();
 
+    juce::dsp::Oscillator<float> osc;
+
 
 
     //==============================================================================
