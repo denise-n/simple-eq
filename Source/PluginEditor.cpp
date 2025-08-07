@@ -69,39 +69,65 @@ void LookAndFeel::drawToggleButton(juce::Graphics &g, juce::ToggleButton &toggle
 {
     using namespace juce;
 
-    Path powerButton;
+    if (auto pb = dynamic_cast<PowerButton*>(&toggleButton))
+    {
+        Path powerButton;
 
-    auto bounds = toggleButton.getLocalBounds();
-    auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 6;
-    auto r = bounds.withSizeKeepingCentre(size, size).toFloat();
+        auto bounds = toggleButton.getLocalBounds();
+        auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 6;
+        auto r = bounds.withSizeKeepingCentre(size, size).toFloat();
 
-    float ang = 30.f;
+        float ang = 30.f;
 
-    size -= 6;
+        size -= 6;
 
-    powerButton.addCentredArc(
-        r.getCentreX(),
-        r.getCentreY(),
-        size * 0.5,
-        size * 0.5,
-        0.f,
-        degreesToRadians(ang),
-        degreesToRadians(360.f - ang),
-        true
-        );
+        powerButton.addCentredArc(
+            r.getCentreX(),
+            r.getCentreY(),
+            size * 0.5,
+            size * 0.5,
+            0.f,
+            degreesToRadians(ang),
+            degreesToRadians(360.f - ang),
+            true
+            );
 
-    powerButton.startNewSubPath(r.getCentreX(), r.getY());
-    powerButton.lineTo(r.getCentre());
+        powerButton.startNewSubPath(r.getCentreX(), r.getY());
+        powerButton.lineTo(r.getCentre());
 
-    PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
-    auto btnColour = toggleButton.getToggleState() ? Colours::dimgrey : Colour(144u, 238u, 144u);
-    g.setColour(btnColour);
-    g.strokePath(powerButton, pst);
-    g.drawEllipse(r, 2);
+        PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
+        auto btnColour = toggleButton.getToggleState() ? Colours::dimgrey : Colour(144u, 238u, 144u);
+        g.setColour(btnColour);
+        g.strokePath(powerButton, pst);
+        g.drawEllipse(r, 2);
+    }
+    else if (auto* analyserButton = dynamic_cast<AnalyserButton*>(&toggleButton))
+    {
+        auto colour = ! toggleButton.getToggleState() ? Colours::dimgrey : Colour(144u, 238u, 144u);
 
+        g.setColour(colour);
 
+        auto bounds = toggleButton.getLocalBounds();
+        g.drawRect(bounds);
+
+        auto insetRect = bounds.reduced(4);
+
+        Path randomPath;
+
+        Random r;
+        randomPath.startNewSubPath(
+            insetRect.getX(),
+            insetRect.getY() + insetRect.getHeight() * r.nextFloat());
+
+        for (auto x = insetRect.getX() + 1; x < insetRect.getRight(); x+=2)
+        {
+            randomPath.lineTo(x, insetRect.getY() + insetRect.getHeight() * r.nextFloat());
+        }
+
+        g.strokePath(randomPath, PathStrokeType(1.f));
+
+    }
 }
-
 
 // =========================================================
 void RotarySliderWithLabels::paint(juce::Graphics& g)
@@ -617,6 +643,7 @@ analyserEnabledButtonAttachment(processorRef.apvts, "Analyser Enabled", analyser
     peakBypassButton.setLookAndFeel(&lnf);
     lowcutBypassButton.setLookAndFeel(&lnf);
     highcutBypassButton.setLookAndFeel(&lnf);
+    analyserEnabledButton.setLookAndFeel(&lnf);
 
     setSize (600, 400);
 }
@@ -626,6 +653,7 @@ analyserEnabledButtonAttachment(processorRef.apvts, "Analyser Enabled", analyser
     peakBypassButton.setLookAndFeel(nullptr);
     lowcutBypassButton.setLookAndFeel(nullptr);
     highcutBypassButton.setLookAndFeel(nullptr);
+    analyserEnabledButton.setLookAndFeel(nullptr);
     }
 
     //==============================================================================
@@ -644,6 +672,16 @@ analyserEnabledButtonAttachment(processorRef.apvts, "Analyser Enabled", analyser
         // Top 1/3 of display for showing freq responses
         // Bottom 2/3 is sliders
         auto bounds = getLocalBounds();
+
+        auto analyserEnabledArea = bounds.removeFromTop(25);
+        analyserEnabledArea.setWidth(100);
+        analyserEnabledArea.setX(5);
+        analyserEnabledArea.removeFromTop(2);
+
+        analyserEnabledButton.setBounds(analyserEnabledArea);
+
+        bounds.removeFromTop(5);
+
         float hRatio = 25.f/ 100.f; //JUCE_LIVE_CONSTANT(33) / 100.f;
         auto responseArea = bounds.removeFromTop(bounds.getHeight() * hRatio);
 
