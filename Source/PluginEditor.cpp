@@ -300,11 +300,14 @@ void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
 
 void ResponseCurveComponent::timerCallback()
 {
-    auto fftBounds = getAnalysisArea().toFloat();
-    auto sampleRate = processorRef.getSampleRate();
+    if (shouldShowFFTAnalysis)
+    {
+        auto fftBounds = getAnalysisArea().toFloat();
+        auto sampleRate = processorRef.getSampleRate();
 
-    leftPathProducer.process(fftBounds, sampleRate);
-    rightPathProducer.process(fftBounds, sampleRate);
+        leftPathProducer.process(fftBounds, sampleRate);
+        rightPathProducer.process(fftBounds, sampleRate);
+    }
 
     if (parametersChanged.compareAndSetBool(false, true))
     {
@@ -409,15 +412,19 @@ void ResponseCurveComponent::paint (juce::Graphics& g)
         responseCurve.lineTo(responseArea.getX() + i, map(magnitudes[i]));
     }
 
-    auto leftChannelFFTPath = leftPathProducer.getPath();
-    leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-    g.setColour(Colours::cornflowerblue);
-    g.strokePath(leftChannelFFTPath, PathStrokeType(1));
+    if (shouldShowFFTAnalysis)
+    {
+        auto leftChannelFFTPath = leftPathProducer.getPath();
+        leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+        g.setColour(Colours::cornflowerblue);
+        g.strokePath(leftChannelFFTPath, PathStrokeType(1));
 
-    auto rightChannelFFTPath = rightPathProducer.getPath();
-    rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
-    g.setColour(Colours::palegoldenrod);
-    g.strokePath(rightChannelFFTPath, PathStrokeType(1));
+        auto rightChannelFFTPath = rightPathProducer.getPath();
+        rightChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY()));
+        g.setColour(Colours::palegoldenrod);
+        g.strokePath(rightChannelFFTPath, PathStrokeType(1));
+    }
+
 
 
     g.setColour(Colours::orange);
@@ -661,6 +668,15 @@ analyserEnabledButtonAttachment(processorRef.apvts, "Analyser Enabled", analyser
             comp->highCutFreqSlider.setEnabled(!bypassed);
             comp->highCutSlopeSlider.setEnabled(!bypassed);
         }
+    };
+
+    analyserEnabledButton.onClick = [safePtr] ()
+    {
+      if (auto* comp = safePtr.getComponent())
+      {
+          auto enabled = comp->analyserEnabledButton.getToggleState();
+          comp->responseCurveComponent.toggleAnalysisEnablement(enabled);
+      }
     };
 
     setSize (600, 400);
