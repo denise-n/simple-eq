@@ -13,12 +13,13 @@ void LookAndFeel::drawRotarySlider(juce::Graphics & g, int x, int y, int width, 
 
     auto bounds = Rectangle<float>(x,y, width, height);
 
-    // g.setColour(Colour(97u, 18u, 167)); // og purple colour
-    g.setColour(Colour(255u, 220u, 180u).withAlpha(0.9f)); // light apricot
+    auto enabled = slider.isEnabled();
+
+    g.setColour(enabled ? Colour(255u, 220u, 180u).withAlpha(0.9f) : Colours::darkgrey); // light apricot
 
     g.fillEllipse(bounds);
 
-    g.setColour(Colour(255u, 154u, 1u));
+    g.setColour(enabled ? Colour(255u, 154u, 1u) : Colours::grey); // orange
     g.drawEllipse(bounds, 1.f);
 
     if ( auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider))
@@ -629,6 +630,38 @@ analyserEnabledButtonAttachment(processorRef.apvts, "Analyser Enabled", analyser
     lowcutBypassButton.setLookAndFeel(&lnf);
     highcutBypassButton.setLookAndFeel(&lnf);
     analyserEnabledButton.setLookAndFeel(&lnf);
+
+    auto safePtr = juce::Component::SafePointer<SimpleEQAudioProcessorEditor>(this);
+    peakBypassButton.onClick = [safePtr]()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto bypassed = comp->peakBypassButton.getToggleState();
+            comp->peakFreqSlider.setEnabled(!bypassed);
+            comp->peakGainSlider.setEnabled(!bypassed);
+            comp->peakQualitySlider.setEnabled(!bypassed);
+        }
+    };
+
+    lowcutBypassButton.onClick = [safePtr]()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto bypassed = comp->lowcutBypassButton.getToggleState();
+            comp->lowCutFreqSlider.setEnabled(!bypassed);
+            comp->lowCutSlopeSlider.setEnabled(!bypassed);
+        }
+    };
+
+    highcutBypassButton.onClick = [safePtr] ()
+    {
+        if (auto* comp = safePtr.getComponent())
+        {
+            auto bypassed = comp->highcutBypassButton.getToggleState();
+            comp->highCutFreqSlider.setEnabled(!bypassed);
+            comp->highCutSlopeSlider.setEnabled(!bypassed);
+        }
+    };
 
     setSize (600, 400);
 }
