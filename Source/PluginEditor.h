@@ -258,7 +258,7 @@ private:
 
     PathProducer leftPathProducer, rightPathProducer;
 
-    bool shouldShowFFTAnalysis = true;
+    bool shouldShowFFTAnalysis;
 };
 
 struct PowerButton : juce::ToggleButton {};

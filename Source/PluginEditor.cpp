@@ -59,11 +59,6 @@ void LookAndFeel::drawRotarySlider(juce::Graphics & g, int x, int y, int width, 
         g.setColour(enabled ? Colours::white : Colours::lightgrey);
         g.drawFittedText(text, r.toNearestInt(), juce::Justification::centred, 1);
     }
-
-
-
-
-
 }
 
 void LookAndFeel::drawToggleButton(juce::Graphics &g, juce::ToggleButton &toggleButton, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
@@ -225,7 +220,6 @@ juce::String RotarySliderWithLabels::getDisplayString() const
 //=============================================================================
 ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) :
 processorRef(p),
-// leftChannelFifo(&processorRef.leftChannelFifo)
 leftPathProducer(processorRef.leftChannelFifo),
 rightPathProducer(processorRef.rightChannelFifo)
 {
@@ -296,7 +290,6 @@ void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
     }
 
 }
-
 
 void ResponseCurveComponent::timerCallback()
 {
@@ -575,8 +568,6 @@ juce::Rectangle<int> ResponseCurveComponent::getAnalysisArea()
     bounds.removeFromBottom(4);
     return bounds;
 }
-
-
 
 //==============================================================================
 SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcessor& p)
